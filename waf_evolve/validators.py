@@ -263,6 +263,19 @@ SQL_ERROR_SIGNATURES = [
     re.compile(r"near \".*\": syntax error", re.IGNORECASE),
     re.compile(r"Unclosed quotation mark", re.IGNORECASE),
     re.compile(r"quoted string not properly terminated", re.IGNORECASE),
+    # MSSQL: canonical "Msg NNN, Level NN, State N, ... Line N:" header
+    re.compile(r"Msg \d+, Level \d+, State \d+", re.IGNORECASE),
+    re.compile(r"conversion failed when converting", re.IGNORECASE),
+    re.compile(r"string or binary conversion failed", re.IGNORECASE),
+    re.compile(r"incorrect syntax near", re.IGNORECASE),
+    re.compile(r"arithmetic overflow error converting", re.IGNORECASE),
+    re.compile(r"the underlying provider failed on an", re.IGNORECASE),
+    # DB2: "DB2 SQL Error: SQLCODE=-NNN, SQLSTATE=..." and "SQLNNNNn/w/a ..."
+    re.compile(r"DB2 SQL Error", re.IGNORECASE),
+    re.compile(r"SQLCODE\s*=\s*-?\d+", re.IGNORECASE),
+    re.compile(r"SQL\d{4}[NWA]", re.IGNORECASE),
+    # MariaDB / MySQL: "The MariaDB server is running with version ..."
+    re.compile(r"(?:mysql|maria)\w* server is running with version", re.IGNORECASE),
 ]
 
 

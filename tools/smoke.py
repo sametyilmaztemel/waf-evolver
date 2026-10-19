@@ -77,6 +77,15 @@ SQL_ERROR_CORPUS = [
     'An exception occurred: near "WHERE": syntax error',
     "Unclosed quotation mark after the expression 'admin'.",
     "quoted string not properly terminated",
+    "Msg 102, Level 15, State 1, Line 1: Incorrect syntax near ''admin''.",
+    "Incorrect syntax near the keyword 'WHERE'.",
+    "Conversion failed when converting the nvarchar value 'abc' using input data.",
+    "String or binary conversion failed in the query between Operator and Column.",
+    "Arithmetic overflow error converting expression to data type int.",
+    "The underlying provider failed on an open connection.",
+    "DB2 SQL Error: SQLCODE=-204, SQLSTATE=42703, SQLERRMC=users.",
+    "SQL0734N The string variable users is not defined.",
+    "The MariaDB server is running with version 10.5.8-MariaDB-1:1:1",
 ]
 
 LFI_CORPUS = {
@@ -229,6 +238,16 @@ def check_sql_signatures():
         assert hits, f"SQL signature {pat.pattern!r} matches no corpus line (dead?)"
     ok, _reason = validate_sqli(SQL_ERROR_CORPUS[0])
     assert ok, "validate_sqli should accept a known SQL error"
+    # explicit positive pins for the MSSQL / DB2 signature families: the
+    # per-pattern dead-check above only proves each regex can fire on some
+    # line, these prove validate_sqli accepts a real MSSQL and a real DB2
+    # error end-to-end.
+    mssql_line = "Msg 102, Level 15, State 1, Line 1: Incorrect syntax near ''admin''."
+    db2_line = "DB2 SQL Error: SQLCODE=-204, SQLSTATE=42703, SQLERRMC=users."
+    for line, label in ((mssql_line, "MSSQL"), (db2_line, "DB2")):
+        assert line in SQL_ERROR_CORPUS, f"corpus lost the {label} pin line"
+        ok_db, _reason = validate_sqli(line)
+        assert ok_db, f"validate_sqli should accept a real {label} error"
     no, _reason = validate_sqli("all good, 200 ok")
     assert not no, "validate_sqli should reject harmless text"
     return len(SQL_ERROR_SIGNATURES)
