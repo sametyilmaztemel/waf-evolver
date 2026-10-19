@@ -157,6 +157,10 @@ def check_evasion_pins():
         (gbk_overlong, "a' b", "a%df%27%df%20b"),
         (backslash_insert_sql, "x = 1", "x\\ \\=\\ 1"),
         (sql_hex_string_literal, "'admin'", "0x61646d696e"),
+        # degenerate inputs: only matched pairs rewrite, no corruption
+        (sql_hex_string_literal, "'a'b'", "0x61b'"),
+        (sql_hex_string_literal, "admin", "admin"),
+        (sql_hex_string_literal, "''", "0x"),
         (uri_case_fold, "a%2Fb%3Dc", "a%2fb%3dc"),
     ]
     for fn, inp, expected in pins:

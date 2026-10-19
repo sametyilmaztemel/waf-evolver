@@ -232,7 +232,12 @@ def overlong_utf8(payload: str) -> str:
 
 
 def gbk_overlong(payload: str) -> str:
-    """GBK multi-byte for space (-> %df%20) and single-quote (-> %df%27)."""
+    """GBK multi-byte for space (-> %df%20) and single-quote (-> %df%27).
+
+    0xdf is a valid GBK lead byte (0x81-0xFE); a server decoding a
+    GBK/GB18030 parameter reads lead+trail as one character, so %df%27
+    hides the quote from byte-oriented rules while the query still parses.
+    """
     return payload.replace(" ", "%df%20").replace("'", "%df%27")
 
 
@@ -243,7 +248,14 @@ def backslash_insert_sql(payload: str) -> str:
 
 
 def sql_hex_string_literal(payload: str) -> str:
-    """Rewrite each single-quoted literal as a 0x-hex blob (quotes dropped)."""
+    """Rewrite each single-quoted literal as a 0x-hex blob (quotes dropped).
+
+    Only matched single-quoted pairs are rewritten; a trailing/unmatched
+    quote (degenerate input) is left untouched, so the operator never
+    corrupts the byte stream. In MySQL 0x<hex> is a BINARY literal equal
+    to the original string bytes, so comparisons still match while
+    quoted-string/keyword signatures miss it.
+    """
     def _hex(m: "re.Match[str]") -> str:
         return "0x" + "".join(f"{ord(c):02x}" for c in m.group(1))
     return re.sub(r"'([^']*)'", _hex, payload)
