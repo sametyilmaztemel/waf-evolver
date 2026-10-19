@@ -17,7 +17,11 @@ is dead, broken or internally inconsistent:
   * a SQL-error or LFI-file signature matches nothing in the realistic corpus
     (i.e. it is dead or typo'd);
   * the static XSS validator neither accepts a known-good reflection nor
-    rejects known-harmless text.
+    rejects known-harmless text;
+  * the time-based SQLi sibling generator (_make_time_siblings) does not
+    produce the exact (fast, slow) probe pair for sleep/pg_sleep, MSSQL
+    WAITFOR DELAY and MySQL BENCHMARK, or fails to return None when no time
+    construct is present.
 
 On success it prints "SMOKE OK (...)" and exits 0.
 """
@@ -50,6 +54,7 @@ from waf_evolve.mutations import (
 from waf_evolve.validators import (
     KNOWN_FILE_SIGNATURES,
     SQL_ERROR_SIGNATURES,
+    _make_time_siblings,
     validate_lfi,
     validate_sqli,
     validate_xss_static,
@@ -266,6 +271,32 @@ def check_lfi_signatures():
     return len(KNOWN_FILE_SIGNATURES)
 
 
+def check_time_siblings():
+    """Byte-for-byte pins on _make_time_siblings: the time-based active
+    confirmation only works if the (fast, slow) probe pair differs exactly in
+    the time cost. Pin all three constructs: sleep/pg_sleep (incl. the inner
+    sleep of BENCHMARK(N, SLEEP(x))), MSSQL WAITFOR DELAY, and the BENCHMARK
+    iteration-count differential; a payload without a time construct must
+    still return None."""
+    pins = [
+        # MSSQL WAITFOR DELAY clause rewrite
+        ("x' WAITFOR DELAY '0:0:5' --",
+         ("x' WAITFOR DELAY '0:0:0' --", "x' WAITFOR DELAY '0:0:3' --")),
+        # BENCHMARK(N, SLEEP(x)) must keep going through the inner-sleep path
+        ("x' BENCHMARK(1000000, SLEEP(5)) --",
+         ("x' BENCHMARK(1000000, SLEEP(0)) --", "x' BENCHMARK(1000000, SLEEP(3)) --")),
+        # BENCHMARK without an inner sleep: N-differential
+        ("x' BENCHMARK(100, MD5(1)) --",
+         ("x' BENCHMARK(1, MD5(1)) --", "x' BENCHMARK(10000000, MD5(1)) --")),
+        # no time construct at all
+        ("1 AND 1=1", None),
+    ]
+    for inp, expected in pins:
+        got = _make_time_siblings(inp)
+        assert got == expected, f"_make_time_siblings({inp!r}) = {got!r}, expected {expected!r}"
+    return len(pins)
+
+
 def check_xss_static():
     good_text, payload = XSS_GOOD
     ok, _reason = validate_xss_static(good_text, payload)
@@ -298,12 +329,13 @@ def main():
     n_waf = check_fingerprints()
     n_sql = check_sql_signatures()
     n_lfi = check_lfi_signatures()
+    n_time = check_time_siblings()
     n_xss = check_xss_static()
     n_xss_vec = check_xss_vector_coverage()
     print(
         f"SMOKE OK ({n_ops} operators, {n_waf} fingerprints, "
-        f"{n_sql} sqli-signatures, {n_lfi} lfi-files, {n_xss} xss-check, "
-        f"{n_xss_vec} xss-vectors-covered)"
+        f"{n_sql} sqli-signatures, {n_lfi} lfi-files, {n_time} time-siblings, "
+        f"{n_xss} xss-check, {n_xss_vec} xss-vectors-covered)"
     )
     return 0
 

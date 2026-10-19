@@ -338,17 +338,38 @@ def _make_boolean_siblings(logical: str):
 
 
 def _make_time_siblings(logical: str):
-    """Return (fast_variant sleep(0), slow_variant sleep(SLOW)), or None."""
+    """Return (fast_variant, slow_variant) differing only in time cost, or
+    None. Three time constructs are handled, in this order:
+
+    1. sleep(x) / pg_sleep(x) -> x becomes 0 / TIME_SLOW_SEC. This also
+       covers BENCHMARK(N, SLEEP(x)) payloads via their inner sleep.
+    2. MSSQL WAITFOR DELAY 'h:m:s' -> the clause is rewritten to
+       WAITFOR DELAY '0:0:0' / WAITFOR DELAY '0:0:TIME_SLOW_SEC'.
+    3. MySQL BENCHMARK(N, expr) without an inner sleep -> N becomes
+       1 / BENCHMARK_SLOW_N (iteration-count differential).
+    """
     m = re.search(r"(sleep|pg_sleep)\s*\(\s*\d+(\.\d+)?\s*\)", logical, re.IGNORECASE)
-    if not m:
-        return None
-    fast = logical[:m.start()] + re.sub(r"\d+(\.\d+)?", "0", m.group(0), count=1) + logical[m.end():]
-    slow = logical[:m.start()] + re.sub(r"\d+(\.\d+)?", str(TIME_SLOW_SEC), m.group(0), count=1) + logical[m.end():]
-    return fast, slow
+    if m:
+        fast = logical[:m.start()] + re.sub(r"\d+(\.\d+)?", "0", m.group(0), count=1) + logical[m.end():]
+        slow = logical[:m.start()] + re.sub(r"\d+(\.\d+)?", str(TIME_SLOW_SEC), m.group(0), count=1) + logical[m.end():]
+        return fast, slow
+    m = re.search(r"waitfor\s+delay\s*['\"]?\d+(?::\d+)*['\"]?", logical, re.IGNORECASE)
+    if m:
+        return (
+            logical[:m.start()] + "WAITFOR DELAY '0:0:0'" + logical[m.end():],
+            logical[:m.start()] + f"WAITFOR DELAY '0:0:{TIME_SLOW_SEC}'" + logical[m.end():],
+        )
+    m = re.search(r"benchmark\s*\(\s*\d+", logical, re.IGNORECASE)
+    if m:
+        fast = logical[:m.start()] + re.sub(r"\d+", "1", m.group(0), count=1) + logical[m.end():]
+        slow = logical[:m.start()] + re.sub(r"\d+", str(BENCHMARK_SLOW_N), m.group(0), count=1) + logical[m.end():]
+        return fast, slow
+    return None
 
 
 TIME_SLOW_SEC = 3
 TIME_MARGIN_SEC = 1.8
+BENCHMARK_SLOW_N = 10000000
 BOOL_DIFF_MAX_RATIO = 0.95
 
 
