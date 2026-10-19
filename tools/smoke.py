@@ -153,7 +153,7 @@ def check_evasion_pins():
     operators (overlong UTF-8/GBK, backslash insertion, hex string literal,
     percent-encoding case fold)."""
     pins = [
-        (overlong_utf8, "a b'c", "a%c0%afb%c0%27c"),
+        (overlong_utf8, "a b'c", "a%c0%a0b%c0%a7c"),
         (gbk_overlong, "a' b", "a%df%27%df%20b"),
         (backslash_insert_sql, "x = 1", "x\\ \\=\\ 1"),
         (sql_hex_string_literal, "'admin'", "0x61646d696e"),

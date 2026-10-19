@@ -221,8 +221,14 @@ def sql_inline_comment_split(payload: str) -> str:
 
 
 def overlong_utf8(payload: str) -> str:
-    """Overlong UTF-8 for space (-> %c0%af) and single-quote (-> %c0%27)."""
-    return payload.replace(" ", "%c0%af").replace("'", "%c0%27")
+    """Overlong UTF-8 for space (-> %c0%a0) and single-quote (-> %c0%a7).
+
+    The two-byte overlong forms decode to 0x20 (space) and 0x27 (quote)
+    respectively; byte-oriented signature rules that only match the
+    single-byte form let them through while the server reassembles the
+    original byte.
+    """
+    return payload.replace(" ", "%c0%a0").replace("'", "%c0%a7")
 
 
 def gbk_overlong(payload: str) -> str:
