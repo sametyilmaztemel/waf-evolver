@@ -42,7 +42,7 @@ WAF_SIGNATURES = {
     },
     "Bunny.net": {
         "headers": [r"server:\s*bunnycdn", r"x-bunny-", r"bunnycdn"],
-        "body": [r"bunny", r"cdn\s*bunny"],
+        "body": [r"bunnycdn", r"cdn\s*bunny"],
     },
     "Fastly": {
         "headers": [r"x-fastly-request-id", r"x-fastly-", r"via:\s*.*fastly"],
