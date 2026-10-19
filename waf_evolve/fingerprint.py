@@ -64,6 +64,18 @@ WAF_SIGNATURES = {
         "headers": [r"x-wallarm", r"wallarm"],
         "body": [r"wallarm"],
     },
+    "GCP/Cloud Armor": {
+        "headers": [r"x-cloud-trace-context", r"server:\s*google\s+frontend"],
+        "body": [r"google frontend", r"cloud armor"],
+    },
+    "KeyCDN": {
+        "headers": [r"via:\s*.*keycdn", r"x-keycdn", r"keycdn"],
+        "body": [r"keycdn"],
+    },
+    "Radware/LinkDDoS": {
+        "headers": [r"linkdd", r"server:\s*radware"],
+        "body": [r"linkdd", r"radware"],
+    },
 }
 
 
@@ -89,6 +101,9 @@ WAF_OPERATOR_PRIORS = {
     "PerimeterX/HUMAN": ["case_randomize", "whitespace_alt", "unicode_homoglyph", "url_encode_partial"],
     "DataDome": ["case_randomize", "url_encode_partial", "whitespace_alt", "unicode_homoglyph"],
     "Wallarm": ["overlong_utf8", "gbk_overlong", "case_randomize", "whitespace_alt"],
+    "GCP/Cloud Armor": ["overlong_utf8", "uri_case_fold", "case_randomize", "double_url_encode"],
+    "KeyCDN": ["overlong_utf8", "uri_case_fold", "case_randomize", "sql_hex_string_literal"],
+    "Radware/LinkDDoS": ["case_randomize", "whitespace_alt", "overlong_utf8", "url_encode_partial"],
 }
 
 
