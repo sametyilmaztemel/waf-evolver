@@ -34,6 +34,7 @@ from waf_evolve.fingerprint import (
     fingerprint_waf,
 )
 from waf_evolve.mutations import (
+    _XSS_VECTOR_TEMPLATES,
     ALL_MUTATIONS,
     OPERATORS_BY_CATEGORY,
     backslash_insert_sql,
@@ -229,27 +230,18 @@ def check_xss_static():
 
 
 def check_xss_vector_coverage():
-    """Every new XSS delivery vector (from the expanded xss_tag_vector_swap)
-    and the two deterministic XSS evasion operators must be attributable by
-    the static validator when reflected, so a regression that renders them
-    'invisible' to validate_xss_static is caught immediately."""
-    vectors = [
-        '<math><mtext></mtext><mglyph><style><mpath href="#</style><img src=x onerror=alert(1)>',
-        "<video src=x onerror=alert(1)>",
-        "<audio src=x onerror=alert(1)>",
-        "<template><svg onload=alert(1)>",
-        "<data><img src=x onerror=alert(1)>",
-        "<isindex type=image src=x onerror=alert(1)>",
-        "<marquee onstart=alert(1)>",
-        "<meter value=2 max=1 onmouseover=alert(1)>",
-        "<form><button formaction=javascript:alert(1)>",
-        xss_polyglot("alert(1)"),
-        xss_js_char_escape("<svg onload=alert(1)>"),
-    ]
+    """Every XSS delivery vector in _XSS_VECTOR_TEMPLATES (the single source
+    of truth shared with xss_tag_vector_swap) and the two deterministic XSS
+    evasion operators must be attributable by the static validator when
+    reflected, so a regression that renders them 'invisible' to
+    validate_xss_static is caught immediately."""
+    vectors = [tmpl.format(call="alert(1)") for tmpl in _XSS_VECTOR_TEMPLATES]
+    vectors.append(xss_polyglot("alert(1)"))
+    vectors.append(xss_js_char_escape("<svg onload=alert(1)>"))
     for vec in vectors:
         reflected = f"<html><body> {vec} </body></html>"
         ok, reason = validate_xss_static(reflected, vec)
-        assert ok, f"static XSS validator missed new vector {vec!r} ({reason})"
+        assert ok, f"static XSS validator missed vector {vec!r} ({reason})"
     return len(vectors)
 
 

