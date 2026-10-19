@@ -418,8 +418,9 @@ def confirm_sqli_active(prober, payload: str, baseline_stats: dict) -> tuple[boo
             deltas.append(r_slow.elapsed.total_seconds() - r_fast.elapsed.total_seconds())
         if ok and deltas and all(d >= margin for d in deltas):
             avg = sum(deltas) / len(deltas)
-            return True, (f"TIME-BASED blind SQLi confirmed: sleep({TIME_SLOW_SEC}) delayed response "
-                          f"by ~{avg:.2f}s vs sleep(0) across {len(deltas)} trials (margin {margin:.2f}s)")
+            return True, (f"TIME-BASED blind SQLi confirmed: the slow variant of the payload "
+                          f"delayed the response by ~{avg:.2f}s vs the fast variant across "
+                          f"{len(deltas)} trials (margin {margin:.2f}s)")
 
     bool_sib = _make_boolean_siblings(logical)
     if bool_sib:
