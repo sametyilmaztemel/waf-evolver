@@ -238,6 +238,19 @@ KNOWN_FILE_SIGNATURES = {
         re.compile(r"<\?php"),
         re.compile(r"<\?=\s"),
     ],
+    "boot.ini": [
+        re.compile(r"\[boot loader\]", re.IGNORECASE),
+        re.compile(r"(ntoskrnl\.exe|ntdetect\.com)", re.IGNORECASE),
+    ],
+    "/etc/os-release": [
+        re.compile(r"PRETTY_NAME=", re.IGNORECASE),
+    ],
+    "wp-config.php": [
+        re.compile(r"define\s*\(\s*['\"]?DB_(?:NAME|USER|PASSWORD|HOST)['\"]?", re.IGNORECASE),
+    ],
+    "web.config": [
+        re.compile(r"connectionStrings", re.IGNORECASE),
+    ],
 }
 
 

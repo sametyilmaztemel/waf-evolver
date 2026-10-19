@@ -98,6 +98,36 @@ LFI_CORPUS = {
     "/etc/shadow": ["root:$6$xyz$abcdefghijklmnop"],
     "win.ini": ["[fonts]", "[extensions]"],
     "php_source": ["<?php echo 1;", "<?= date('Y')"],
+    "boot.ini": [
+        "[boot loader]",
+        "timeout=30",
+        "default=multi(0)disk(0)rdisk(0)partition(1)\\WINDOWS",
+        "[operating systems]",
+        "multi(0)disk(0)rdisk(0)partition(1)\\WINDOWS=\"Microsoft Windows XP Professional\"=ntoskrnl.exe /noexecute=auto /detecthal",
+    ],
+    "/etc/os-release": [
+        "NAME=\"Ubuntu\"",
+        "VERSION=\"22.04.4 LTS (Jammy Jellyfish)\"",
+        "ID=ubuntu",
+        "ID_LIKE=debian",
+        "PRETTY_NAME=\"Ubuntu 22.04.4 LTS\"",
+        "VERSION_ID=\"22.04.4\"",
+        "HOME_URL=\"https://ubuntu.com/\"",
+    ],
+    "wp-config.php": [
+        "<?php // ** Database settings ** //",
+        "define( 'DB_NAME', 'wordpress' );",
+        "define( 'DB_USER', 'wp_admin' );",
+        "define( 'DB_PASSWORD', 'Sup3rS3cret!' );",
+        "define( 'DB_HOST', 'localhost' );",
+    ],
+    "web.config": [
+        "<configuration>",
+        "  <connectionStrings>",
+        "    <add name=\"AppConn\" connectionString=\"Data Source=.;Initial Catalog=appdb;Integrated Security=True\" providerName=\"System.Data.SqlClient\" />",
+        "  </connectionStrings>",
+        "</configuration>",
+    ],
 }
 
 # Deterministic operators pinned to exact input -> output so a behavior change
@@ -266,6 +296,14 @@ def check_lfi_signatures():
             assert hits, f"LFI signature [{file_hint}] {pat.pattern!r} matches no corpus line (dead?)"
     ok, _reason = validate_lfi("root:x:0:0:root:/root:/bin/bash")
     assert ok, "validate_lfi should accept /etc/passwd content"
+    # explicit positive pins for the newer file families (boot.ini,
+    # wp-config.php): the per-pattern dead-check above only proves each
+    # regex can fire on some line, these prove validate_lfi accepts a real
+    # boot.ini line and a real wp-config.php line end-to-end.
+    ok_boot, _reason = validate_lfi("[boot loader]")
+    assert ok_boot, "validate_lfi should accept boot.ini content"
+    ok_wp, _reason = validate_lfi("define( 'DB_NAME', 'wordpress' );")
+    assert ok_wp, "validate_lfi should accept wp-config.php content"
     no, _reason = validate_lfi("nothing interesting here")
     assert not no, "validate_lfi should reject harmless text"
     return len(KNOWN_FILE_SIGNATURES)
