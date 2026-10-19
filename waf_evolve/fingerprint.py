@@ -52,6 +52,18 @@ WAF_SIGNATURES = {
         "headers": [r"x-varnish", r"via:\s*.*varnish"],
         "body": [r"varnish"],
     },
+    "PerimeterX/HUMAN": {
+        "headers": [r"x-px-", r"set-cookie:\s*[^;]*pxhid", r"pxdid"],
+        "body": [r"perimeterx", r"px-captcha", r"human bot"],
+    },
+    "DataDome": {
+        "headers": [r"x-dd-b", r"x-datadome", r"set-cookie:\s*[^;]*datadome"],
+        "body": [r"datadome"],
+    },
+    "Wallarm": {
+        "headers": [r"x-wallarm", r"wallarm"],
+        "body": [r"wallarm"],
+    },
 }
 
 
@@ -74,6 +86,9 @@ WAF_OPERATOR_PRIORS = {
     "Bunny.net": ["overlong_utf8", "gbk_overlong", "uri_case_fold", "case_randomize"],
     "Fastly": ["overlong_utf8", "uri_case_fold", "case_randomize", "double_url_encode"],
     "Varnish": ["overlong_utf8", "gbk_overlong", "uri_case_fold", "case_randomize", "whitespace_alt"],
+    "PerimeterX/HUMAN": ["case_randomize", "whitespace_alt", "unicode_homoglyph", "url_encode_partial"],
+    "DataDome": ["case_randomize", "url_encode_partial", "whitespace_alt", "unicode_homoglyph"],
+    "Wallarm": ["overlong_utf8", "gbk_overlong", "case_randomize", "whitespace_alt"],
 }
 
 
