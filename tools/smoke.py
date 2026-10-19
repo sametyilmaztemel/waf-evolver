@@ -296,14 +296,19 @@ def check_lfi_signatures():
             assert hits, f"LFI signature [{file_hint}] {pat.pattern!r} matches no corpus line (dead?)"
     ok, _reason = validate_lfi("root:x:0:0:root:/root:/bin/bash")
     assert ok, "validate_lfi should accept /etc/passwd content"
-    # explicit positive pins for the newer file families (boot.ini,
-    # wp-config.php): the per-pattern dead-check above only proves each
-    # regex can fire on some line, these prove validate_lfi accepts a real
-    # boot.ini line and a real wp-config.php line end-to-end.
+    # explicit positive pins for all four new file families: the per-pattern
+    # dead-check above only proves each regex can fire on some line, these
+    # prove validate_lfi accepts a real line of each new file end-to-end
+    # (wp-config.php pinned without any <?php so the define() regex is the
+    # match, not the php_source family).
     ok_boot, _reason = validate_lfi("[boot loader]")
     assert ok_boot, "validate_lfi should accept boot.ini content"
+    ok_os, _reason = validate_lfi('PRETTY_NAME="Ubuntu 22.04.4 LTS"')
+    assert ok_os, "validate_lfi should accept /etc/os-release content"
     ok_wp, _reason = validate_lfi("define( 'DB_NAME', 'wordpress' );")
     assert ok_wp, "validate_lfi should accept wp-config.php content"
+    ok_web, _reason = validate_lfi("<connectionStrings>")
+    assert ok_web, "validate_lfi should accept web.config content"
     no, _reason = validate_lfi("nothing interesting here")
     assert not no, "validate_lfi should reject harmless text"
     return len(KNOWN_FILE_SIGNATURES)
